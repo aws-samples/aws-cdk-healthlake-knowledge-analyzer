@@ -129,25 +129,20 @@ Amazon EC2
 
 
 ## Clean up in AWS Cloud9
-`cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-UPDATE-CORE`
-`cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-WEBAPP`
-`cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
-    Note that during the above step in progress, it will take some time to delete the AWS::Kendra::DataSource that was created.
-`cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
-`cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
-`aws healthlake delete-fhir-datastore --datastore-id <<your_data_store_id>>`
-    To verify it’s been deleted, check out the status by running the following command:  
-    `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
+* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-UPDATE-CORE`
+* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-WEBAPP`
+* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
+    * Note that during the above step in progress, it will take some time to delete the AWS::Kendra::DataSource that was created.
+* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
+* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
+* `aws healthlake delete-fhir-datastore --datastore-id <<your_data_store_id>>`
+    * To verify it’s been deleted, check out the status by running the following command:  
+    * `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
 
 -----
 # Troubleshooting
 
-<details>
-<summary>...</summary> 
-
   ## Neptune troubleshooting and debugging 
-  <details>
-    <summary>...</summary> 
   For all commands below, please ensure the cluster endpoing URL is correct.
 
   * For Checking load status you may use:
@@ -169,9 +164,6 @@ Amazon EC2
     ```
     curl -X POST https://<<NEPTUNE_CLUSTER_ENDPOINT>>:8182/sparql -H "Accept: text/csv" -H  "Content-type: application/x-www-form-urlencoded"  --data "update=drop all"
     ```
-  </details>
-
-</details>
 
 -----
 
