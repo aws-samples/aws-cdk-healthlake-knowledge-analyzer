@@ -32,54 +32,67 @@ $ cdk synth
 3. Python>=3.7 
 4. Base AWS S3 bucket where all raw and processed are stored.
 5. The EC2 instance created by WEBAPP stack should have following tools installed
-  * Python
-  * npm
+    * Python
+    * npm
 
 ## Usage Instructions
 1. Pull this repo (this repo)
 2. Install the requirements for cdk stack: `pip install -r requirements.txt`
-3. Run `cdk synth && cdk deploy`. `cdk deploy` may give an error if `cdk bootstrap` has never been run on the aws account. In which case, please run `cdk bootstrap` and set it up.
+3. Run `cdk synth`
 4. Run the following `cdk deploy` commands:
-    `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
-    `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
-    `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
-      `cdk deploy KNOWLEDGE-ANALYZER-CORE` may give an error if `cdk bootstrap` has never been run on the aws account. 
-      In which case, please run `cdk bootstrap` and set it up.
-      `cdk bootstrap aws://<<your_aws_account_id>>/us-east-1`
+    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
+    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
+    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
+      *  `cdk deploy KNOWLEDGE-ANALYZER-CORE` may give an error if `cdk bootstrap` has never been run on the aws account. 
+      * In which case, please run `cdk bootstrap` and set it up.
+        * `cdk bootstrap aws://<<your_aws_account_id>>/us-east-1`
     `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-UPDATE-CORE`
     `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-WEBAPP`
+
 Amazon HealthLake setup
+
 1. In AWS Cloud9, after completing above steps, begin the following steps:
-  Create the data store
-  `aws healthlake create-fhir-datastore --region us-east-1 --datastore-type-version R4 --preload-data-config PreloadDataType="SYNTHEA" --datastore-name "<<your_data_store_name>>"`
-  Check status of the data store
-  `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
-  Export data store to Amazon S3
-  `aws healthlake start-fhir-export-job --output-data-config S3Uri="s3://hl-synthea-export-<<your_AWS_account_number>>/export-$(date +"%d-%m-%y")" --datastore-id <<your_data_store_id>> --data-access-role-arn arn:aws:iam::<<your_AWS_account_number>>:role/AmazonHealthLake-Export-us-east-1-HealthKnoMaDataAccessRole`
-  Check status of export
-  `aws healthlake describe-fhir-export-job --datastore-id <<your_data_store_id>> --job-id <<your_job_id>>`
+  
+    * Create the data store
+  
+      * `aws healthlake create-fhir-datastore --region us-east-1 --datastore-type-version R4 --preload-data-config PreloadDataType="SYNTHEA" --datastore-name "<<your_data_store_name>>"`
+  
+    * Check status of the data store
+
+      * `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
+  
+    * Export data store to Amazon S3
+
+      * `aws healthlake start-fhir-export-job --output-data-config S3Uri="s3://hl-synthea-export-<<your_AWS_account_number>>/export-$(date +"%d-%m-%y")" --datastore-id <<your_data_store_id>> --data-access-role-arn arn:aws:iam::<<your_AWS_account_number>>:role/AmazonHealthLake-Export-us-east-1-HealthKnoMaDataAccessRole`
+  
+    * Check status of export
+
+      * `aws healthlake describe-fhir-export-job --datastore-id <<your_data_store_id>> --job-id <<your_job_id>>`
 
 Amazon SageMaker
 1. In the resourced notebook instance, run the notebook `Synthea_explore_and_run-experiment.ipynb`
-2. Once all the processing is completed, you should see three folder sets as shown below:
+2. Once all the processing is completed, you should see two specific folders as shown below:
     ```
-    ⇒  aws s3 ls s3://hl-synthea-source-<<your_aws_account_id>>/                                      
-                               PRE source/
-    ⇒  aws s3 ls s3://hl-synthea-source-<<your_aws_account_id>>/stdized-data/                                      
-                               PRE neptune_triples/
+    ⇒  aws s3 ls s3://hl-synthea-source-<<your_aws_account_id>>/source/
+    ⇒  aws s3 ls s3://hl-synthea-source-<<your_aws_account_id>>/stdized-data/neptune_triples/
     ```
 Amazon Kendra
-1. In AWS Cloud9, run the following command to synchronize the patient notes in S3 to Amazon Kendra. 
-  `aws kendra start-data-source-sync-job --id <<data_source_id_2nd_circle>> --index-id <<index_id_1st_circle>>`
+1. In AWS Cloud9, run the following command to synchronize the patient notes in S3 to Amazon Kendra.
+
+    * `aws kendra start-data-source-sync-job --id <<data_source_id_2nd_circle>> --index-id <<index_id_1st_circle>>`
+
 2. The sync status will begin and can be verified that it is finished by running the following command.
-  `aws kendra describe-data-source --id <<data_source_id_2nd_circle>> --index-id <<index_id_1st_circle>>`
+
+    * `aws kendra describe-data-source --id <<data_source_id_2nd_circle>> --index-id <<index_id_1st_circle>>`
 
 Amazon EC2
 
 1. After ssh into EC2, run the following commands:
-  `echo fs.inotify.max_user_watches=582222 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
-  `sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 3000`
-   Then run the following to trigger the upload to Amazon Neptune as per below:
+  * `echo fs.inotify.max_user_watches=582222 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
+  * `sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 3000`
+  
+  Then run the following to trigger the upload to Amazon Neptune as per below:
+
     ```
     curl -X POST \
         -H 'Content-Type: application/json' \
@@ -92,6 +105,8 @@ Amazon EC2
         "failOnError": "TRUE"
     }'
     ```
+Example:
+
     ```
     curl -X POST \
         -H 'Content-Type: application/json' \
@@ -109,8 +124,9 @@ Amazon EC2
   * Go to https://docs.conda.io/en/latest/miniconda.html and paste the link for the linux version Python 3.8	Miniconda3
   * `chmod +x` the downloaded Miniconda file and install Miniconda into the EC2 instance
   * Go to https://github.com/nvm-sh/nvm and copy paste the following curl command to install nvm:
-      `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash`
-  * Type in `source .bashrc`
+    * `curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash`
+  * Type in 
+  `source .bashrc`
   * Type in `nvm install 15.10.0`
   * Create the following screen:
       * `screen -S front`
