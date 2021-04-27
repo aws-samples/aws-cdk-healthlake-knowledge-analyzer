@@ -192,7 +192,7 @@ def fetchDocNode(res):
         "rxnorm": { "text": "fa fa-bookmark", "color": palette[entType] },
     }
     
-    ent_id = md5(str(res["ent_name"]["value"]).encode()).hexdigest()
+    ent_id = md5(str(res["doc_name"]["value"]+'_'+res["ent_name"]["value"]+'_'+res["ent_type"]["value"]).encode()).hexdigest()
     combos = md5(entType.encode()).hexdigest()
     edge = md5(ent_id.encode()).hexdigest()
     return {

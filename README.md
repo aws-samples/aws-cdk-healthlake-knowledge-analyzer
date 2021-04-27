@@ -77,6 +77,7 @@ Amazon Kendra
 Amazon EC2
 
 1. After ssh into EC2, run the following commands:
+  `echo fs.inotify.max_user_watches=582222 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
   `sudo iptables -t nat -I PREROUTING -p tcp --dport 80 -j REDIRECT --to-ports 3000`
    Then run the following to trigger the upload to Amazon Neptune as per below:
     ```
