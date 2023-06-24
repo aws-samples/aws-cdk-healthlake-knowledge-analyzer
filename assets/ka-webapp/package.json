@@ -29,7 +29,7 @@
     "react-resize-detector": "^5.0.6",
     "react-rnd": "^10.1.10",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "3.4.4",
+    "react-scripts": "5.0.1",
     "react-split-pane": "^0.1.91",
     "redux": "^4.0.5",
     "redux-thunk": "^2.3.0",
