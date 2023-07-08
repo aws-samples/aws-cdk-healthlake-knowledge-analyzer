@@ -32,6 +32,6 @@ class KAServiceConstruct(Construct):
 
 app = App()
 
-KAServiceConstruct(app, "HEALTHLAKE-KNOWLEDGE-ANALYZER")
+KAServiceConstruct(app, "HLKA")
 
 app.synth()

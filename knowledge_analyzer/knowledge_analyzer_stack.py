@@ -39,7 +39,7 @@ class KnowledgeAnalyzerStack(Stack):
         ## **************** Create Knowledge Analyzer Service Role **************** 
         self.service_role = aws_iam.Role.from_role_arn(
             self, f'{self.PREFIX}-IAMROLE-ServiceRole',
-            f"arn:aws:iam::{self.account}:role/HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE-ServiceRole"
+            f"arn:aws:iam::{self.account}:role/HLKA-IAMROLE-ServiceRole"
         )
 
         ## **************** Create a notebook Instance ****************
