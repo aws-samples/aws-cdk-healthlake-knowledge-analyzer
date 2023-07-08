@@ -9,17 +9,22 @@ To access the resourced EC2, it is imperative that you have the following Key Pa
 
 Create a virtual enviroment in Cloud9. Once the virtualenv is created and activated, you can install the required dependencies.
 
-Check to make sure cdk version is at least 1.92.0
+This repo has been upgraded to CDK v2. Check to make sure cdk version is at least 2.85.0
 `$ cdk --version`
-If not 1.92.0, then run `$ npm install cdk`
+If not 2.85.0, then run `$ npm install cdk`
 ```
-$ cd knoma_healthlake/
+$ cd knowledge_analyzer/
 $ virtualenv -p python3 cdkHL
 $ source cdkHL/bin/activate 
-$ pip install -r requirements.txt
+$ pip install -r ../requirements.txt
 ```
 
-At this point you can now synthesize the CloudFormation template for this code.
+Bootstrap the CDK against your AWS account
+```
+cdk bootstrap aws://<<your_aws_account_id>>/us-east-1
+```
+
+You can now synthesize the CloudFormation templates for this CDK App.
 
 ```
 $ cdk synth
@@ -39,15 +44,21 @@ $ cdk synth
 1. Pull this repo (this repo)
 2. Install the requirements for cdk stack: `pip install -r requirements.txt`
 3. Run `cdk synth`
-4. Run the following `cdk deploy` commands:
-    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
-    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
-    * `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
-      *  `cdk deploy KNOWLEDGE-ANALYZER-CORE` may give an error if `cdk bootstrap` has never been run on the aws account. 
-      * In which case, please run `cdk bootstrap` and set it up.
-        * `cdk bootstrap aws://<<your_aws_account_id>>/us-east-1`
-    `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-UPDATE-CORE`
-    `cdk deploy HEALTHLAKE-KNOWLEDGE-ANALYZER-WEBAPP`
+4. Run the following `cdk deploy` commands in order:
+    * `cdk deploy HLKA-IAMROLE`
+    * `cdk deploy HLKA-VPC-AND-NEPTUNE`
+    * `cdk deploy HLKA-CORE` --no-rollback
+      * This stack may fail with the following error:
+      * `Failed to put bucket notification configuration`
+      * due to a circular dependency on the source S3 bucket's notification policy 
+      * and the SQS Queue ARN. Use the --no-rollback argument to keep the stack 
+      * resources in addition to the failed S3 bucket; then run the command again. 
+      * `cdk deploy HLKA-CORE` --no-rollback
+      * Since the SQS Queue will exist due to preventing rollback on the failure
+      * of the first deployment, the second deloyment will aloow the S3 source 
+      * bucket to be created successfully.
+    * `cdk deploy HLKA-UPDATE-CORE`
+    * `cdk deploy HLKA-WEBAPP`
 
 Amazon HealthLake setup
 
@@ -55,22 +66,53 @@ Amazon HealthLake setup
   
     * Create the data store
   
-      * `aws healthlake create-fhir-datastore --region us-east-1 --datastore-type-version R4 --preload-data-config PreloadDataType="SYNTHEA" --datastore-name "<<your_data_store_name>>"`
+      `aws healthlake create-fhir-datastore --region us-east-1 --datastore-type-version R4 --preload-data-config PreloadDataType="SYNTHEA" --datastore-name "<<your_data_store_name>>"`
   
     * Check status of the data store
 
-      * `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
+      `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`
   
     * Export data store to Amazon S3
 
-      * `aws healthlake start-fhir-export-job --output-data-config S3Uri="s3://hl-synthea-export-<<your_AWS_account_number>>/export-$(date +"%d-%m-%y")" --datastore-id <<your_data_store_id>> --data-access-role-arn arn:aws:iam::<<your_AWS_account_number>>:role/AmazonHealthLake-Export-us-east-1-HealthKnoMaDataAccessRole`
+      `  aws healthlake start-fhir-export-job \ `
+      `--output-data-config '{"S3Configuration": {"S3Uri": "s3://hl-synthea-export-<<your_AWS_account_number>>/export-$(date +"%d-%m-%y"), "KmsKeyId": "<<output_encryption_key_id_from_CORE_stack>>"}}' \`
+      `--datastore-id <<your_data_store_id>> \ `
+      `--data-access-role-arn arn:aws:iam::<<your_AWS_account_number>>:role/AmazonHealthLake-Export-us-east-1-HealthKnoMaDataAccessRole `
+      
+      Output:
+      {
+        "DatastoreId": "<<your_data_store_id>>", 
+        "JobStatus": "SUBMITTED", 
+        "JobId": "<<your_job_id>>"
+      }
   
     * Check status of export
 
-      * `aws healthlake describe-fhir-export-job --datastore-id <<your_data_store_id>> --job-id <<your_job_id>>`
+      `aws healthlake describe-fhir-export-job --datastore-id <<your_data_store_id>> --job-id <<your_job_id>>`
+      
+      Output:
+      
+      {
+        "ExportJobProperties": {
+            "DataAccessRoleArn": "arn:aws:iam::<<your_AWS_account_number>>:role/AmazonHealthLake-Export-us-east-1-HealthKnoMaDataAccessRole", 
+            "JobStatus": "COMPLETED", 
+            "JobId": "7b19300324c22f8bab009d2e23f48a64", 
+            "SubmitTime": 1688773484.304, 
+            "OutputDataConfig": {
+                "S3Configuration": {
+                    "KmsKeyId": "<<your_key_arn>>", 
+                    "S3Uri": "s3://hl-synthea-export-<<your_AWS_account_number>>/export-07-07-23/<<your_data_store_id>>-FHIR_EXPORT-<<your_job_id>>/"
+                }
+            }, 
+            "EndTime": 1688773546.75, 
+            "DatastoreId": "<<your_data_store_id>>"
+        }
+      }
 
 Amazon SageMaker
-1. In the resourced notebook instance, run the notebook `Synthea_explore_and_run-experiment.ipynb`
+1. In the notebook instance that was created in the core stack, import the the notebook `Synthea_explore_and_run-experiment.ipynb`
+   * If you're running this in Cloud9, you'll need to copy and past the file 
+   * contents to a local file, so you can select it to import to the Jupyter notebook environment.
 2. Once all the processing is completed, you should see two specific folders as shown below:
     ```
     ⇒  aws s3 ls s3://hl-synthea-source-<<your_aws_account_id>>/source/
@@ -110,11 +152,11 @@ Example:
     ```
     curl -X POST \
         -H 'Content-Type: application/json' \
-        https://healthlake-knowledge-analyzer-vpc-and-neptune-neptunedbcluster.cluster-xxxxxxxxxxxx.us-east-1.neptune.amazonaws.com:8182/loader -d '
+        https://<<NEPTUNE_CLUSTER_ENDPOINT>>:8182/loader -d '
     {
         "source": "s3://hl-synthea-source-xxxxxxxxxxxx/stdized-data/neptune_triples/nquads/",
         "format": "nquads",
-        "iamRoleArn": "arn:aws:iam::xxxxxxxxxxxx:role/HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE-ServiceRole",
+        "iamRoleArn": "arn:aws:iam::xxxxxxxxxxxx:role/HLKA-IAMROLE-ServiceRole",
         "region": "us-east-1",
         "failOnError": "TRUE"
     }'
@@ -146,12 +188,12 @@ Example:
 
 
 ## Clean up in AWS Cloud9
-* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-UPDATE-CORE`
-* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-WEBAPP`
-* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-CORE`
+* `cdk destroy HLKA-UPDATE-CORE`
+* `cdk destroy HLKA-WEBAPP`
+* `cdk destroy HLKA-CORE`
     * Note that during the above step in progress, it will take some time to delete the AWS::Kendra::DataSource that was created.
-* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-VPC-AND-NEPTUNE`
-* `cdk destroy HEALTHLAKE-KNOWLEDGE-ANALYZER-IAMROLE`
+* `cdk destroy HLKA-VPC-AND-NEPTUNE`
+* `cdk destroy HLKA-IAMROLE`
 * `aws healthlake delete-fhir-datastore --datastore-id <<your_data_store_id>>`
     * To verify it’s been deleted, check out the status by running the following command:  
     * `aws healthlake describe-fhir-datastore --datastore-id "<<your_data_store_id>>" --region us-east-1`

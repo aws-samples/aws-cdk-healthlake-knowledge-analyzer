@@ -1,4 +1,12 @@
-from aws_cdk import core, aws_ec2
+from constructs import Construct
+from aws_cdk import (
+    Stack, 
+    Tags,
+    aws_ec2, 
+    aws_s3 as _s3, 
+    Aws, 
+    RemovalPolicy
+)
 from aws_cdk.aws_neptune import (
   CfnDBCluster,
   CfnDBSubnetGroup,
@@ -7,15 +15,15 @@ from aws_cdk.aws_neptune import (
   CfnDBClusterParameterGroup
 )
 
-class KnowledgeAnalyzerVPCStack(core.Stack):
-    def __init__(self, scope: core.Construct, id: str, imServ, **kwargs) -> None:
+class KnowledgeAnalyzerVPCStack(Stack):
+    def __init__(self, scope: Construct, id: str, imServ, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # *************************************
         # Create VPC
         # *************************************
-        self.vpc = aws_ec2.Vpc(self, f"{id}", max_azs=2, cidr="10.42.0.0/22")
-        core.Tags.of(self.vpc).add("Name", f"{id}-vpc")
+        self.vpc = aws_ec2.Vpc(self, f"{id}", max_azs=2, ip_addresses=aws_ec2.IpAddresses.cidr("10.42.0.0/22"))
+        Tags.of(self.vpc).add("Name", f"{id}-vpc")
 
         # Add S3 endpoint to VPC
         self.vpc.add_gateway_endpoint('S3Endpoint', service = aws_ec2.GatewayVpcEndpointAwsService.S3)
@@ -46,7 +54,7 @@ class KnowledgeAnalyzerVPCStack(core.Stack):
         )
 
         dbcpg = CfnDBClusterParameterGroup(self, f"{id}-NeptuneDBClusterParameterGroup",
-            family = "neptune1",
+            family = "neptune1.2",
             description = "Cluster parameter group for KA stack",
             parameters = { 'neptune_enable_audit_log': 1, 'neptune_lab_mode': 1 }
         )
@@ -87,7 +95,7 @@ class KnowledgeAnalyzerVPCStack(core.Stack):
         # Create Neptune DB Instance
         # *************************************
         dbpg = CfnDBParameterGroup(self, f"{id}-NeptuneDBParameterGroup",
-            family = "neptune1",
+            family = "neptune1.2",
             description = "DB parameter group for KA stack",
             parameters = { 'neptune_query_timeout': 200000}
         )
@@ -103,3 +111,4 @@ class KnowledgeAnalyzerVPCStack(core.Stack):
         neptuneDb.add_override("Properties.DBParameterGroupName", {
             'Ref': dbpg.logical_id
         })
+        

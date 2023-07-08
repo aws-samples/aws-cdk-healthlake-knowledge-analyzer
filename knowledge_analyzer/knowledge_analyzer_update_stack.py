@@ -1,5 +1,7 @@
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Stack,
+    Aws,
     aws_lambda as _lambda,
     aws_sns as sns,
     aws_sqs as sqs,
@@ -14,11 +16,11 @@ from aws_cdk import (
 )
 
 
-class KnowledgeAnalyzerUpdateStack(core.Stack):
+class KnowledgeAnalyzerUpdateStack(Stack):
 
     def __init__(
         self, 
-        scope: core.Construct, 
+        scope: Construct, 
         id: str,
         sqsCfn,
         s3_loc_up,
@@ -31,7 +33,7 @@ class KnowledgeAnalyzerUpdateStack(core.Stack):
         
         self.sqs_queue = sqs.Queue.from_queue_arn(
             self, "QueuefromCfn",
-            f"arn:aws:sqs:us-east-1:{core.Aws.ACCOUNT_ID}:{sqsCfn.queue_name}"
+            f"arn:aws:sqs:{Aws.REGION}:{Aws.ACCOUNT_ID}:{sqsCfn.queue_name}"
         )
 
         s3_loc_up.add_object_created_notification(aws_s3_notifications.SqsDestination(self.sqs_queue), _s3.NotificationKeyFilter(prefix='stdized-data/comprehend_results/csv/', suffix='.csv'))
