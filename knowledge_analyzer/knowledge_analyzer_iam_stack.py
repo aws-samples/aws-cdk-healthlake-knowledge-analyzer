@@ -1,11 +1,15 @@
+from constructs import Construct
 from aws_cdk import (
-    core,
-    aws_iam,
+    Aws,
+    Stack,
+    CfnOutput,
+    aws_iam, 
+    aws_kms
 )
 
-class KnowledgeAnalyzerIAMStack(core.Stack):
+class KnowledgeAnalyzerIAMStack(Stack):
 
-    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         self.PREFIX = id
@@ -55,7 +59,7 @@ class KnowledgeAnalyzerIAMStack(core.Stack):
                 "ec2:*",
                 "sagemaker:*",
                 ],
-            conditions = [],
+            conditions = {},
         ))
 
         # Healthlake
@@ -79,6 +83,39 @@ class KnowledgeAnalyzerIAMStack(core.Stack):
         
         self.app_instance_role.add_to_policy( roleStmt1 )
         self.app_instance_role.add_to_policy( roleStmt2 )
+        
+        # KMS Key for healthlake export to S3, and allow healthalke to use the key
+        self.encryption_key = aws_kms.Key(self, 
+            "export-encryption-key", 
+            enable_key_rotation=True, 
+            policy = aws_iam.PolicyDocument(
+                statements = [ 
+                    aws_iam.PolicyStatement(
+                        effect = aws_iam.Effect.ALLOW,
+                        actions = [ 
+                            "kms:*",
+                        ],
+                        principals = [ aws_iam.AccountRootPrincipal() ],
+                        resources = ["*"],
+                    ),
+                    aws_iam.PolicyStatement(
+                        effect = aws_iam.Effect.ALLOW,
+                        actions = [ 
+                            "kms:DescribeKey",
+                            "kms:Encrypt",
+                            "kms:Decrypt",
+                            "kms:ReEncrypt*",
+                            "kms:GenerateDataKey*",
+                        ],
+                        principals = [ self.app_instance_role ],
+                        resources = ["*"],
+                    ),
+                ]
+            )
+        )
+        self.encryption_key.grant(self.app_instance_role, "kms:DescribeKey")
+        self.encryption_key.grant_encrypt_decrypt(self.app_instance_role)
+        CfnOutput(self, "Export Encryption Key ID", value=self.encryption_key.key_id)
         
         # self.app_instance_role = aws_iam.CfnRole(
         #     self,

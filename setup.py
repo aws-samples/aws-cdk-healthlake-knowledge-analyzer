@@ -19,12 +19,8 @@ setuptools.setup(
     packages=setuptools.find_packages(where="knowledge_analyzer"),
 
     install_requires=[
-        "aws-cdk.core",
-        "aws-cdk.aws_iam",
-        "aws-cdk.aws_sqs",
-        "aws-cdk.aws_sns",
-        "aws-cdk.aws_sns_subscriptions",
-        "aws-cdk.aws_s3",
+        "aws-cdk-lib>=2.0.0",
+        "constructs>=10.0.0",
     ],
 
     python_requires=">=3.6",

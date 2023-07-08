@@ -1,5 +1,9 @@
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Stack,
+    Aws,
+    RemovalPolicy,
+    Duration,
     aws_lambda as _lambda,
     aws_sns as sns,
     aws_sqs as sqs,
@@ -18,11 +22,11 @@ import aws_cdk.aws_sagemaker as sagemaker
 NEPTUNE_TRIPLES_FOLDER = "stdized-data/neptune_triples/nquads/"
 EXECUTE_COMPREHEND_TIMEOUT=900
 
-class KnowledgeAnalyzerStack(core.Stack):
+class KnowledgeAnalyzerStack(Stack):
 
     def __init__(
         self, 
-        scope: core.Construct, 
+        scope: Construct, 
         id: str, 
         vpc: ec2.Vpc,
         lambda_sg: ec2.SecurityGroup,
@@ -39,7 +43,6 @@ class KnowledgeAnalyzerStack(core.Stack):
         )
 
         ## **************** Create a notebook Instance ****************
-
         self.notebook_instance_role = aws_iam.Role(
             self,
             "AmazonSageMaker-ExecutionRole-20210318",
@@ -83,9 +86,9 @@ class KnowledgeAnalyzerStack(core.Stack):
             visibility_timeout = 900,
             queue_name= f'{self.PREFIX}-comprehendCompleteQueue'
         )
-        self.s3export = _s3.Bucket(self, "hl-synthea-export", bucket_name = "hl-synthea-export-%s" % (core.Aws.ACCOUNT_ID), block_public_access=_s3.BlockPublicAccess.BLOCK_ALL, encryption=_s3.BucketEncryption.S3_MANAGED, removal_policy = core.RemovalPolicy.DESTROY, auto_delete_objects= True,)
-        self.s3_loc = _s3.Bucket(self, "hl-synthea-source", bucket_name = "hl-synthea-source-%s" % (core.Aws.ACCOUNT_ID), block_public_access=_s3.BlockPublicAccess.BLOCK_ALL, removal_policy = core.RemovalPolicy.DESTROY, auto_delete_objects= True,)
-        
+        self.s3export = _s3.Bucket(self, "hl-synthea-export", bucket_name = "hl-synthea-export-%s" % (Aws.ACCOUNT_ID), block_public_access=_s3.BlockPublicAccess.BLOCK_ALL, encryption=_s3.BucketEncryption.S3_MANAGED, removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True)
+        self.s3_loc = _s3.Bucket(self, "hl-synthea-source", bucket_name = "hl-synthea-source-%s" % (Aws.ACCOUNT_ID), block_public_access=_s3.BlockPublicAccess.BLOCK_ALL, removal_policy=RemovalPolicy.DESTROY, auto_delete_objects=True)
+            
         self.kendra_instance_role = aws_iam.CfnRole(
             self,
             f'{self.PREFIX}-Kendra-ServiceRole',
@@ -146,7 +149,7 @@ class KnowledgeAnalyzerStack(core.Stack):
                                     'logs:CreateLogGroup',
                                 ],
                                 resources=[
-                                    "arn:" + "aws" + ":logs:" + core.Aws.REGION + ":" + core.Aws.ACCOUNT_ID + ":log-group:" + "/aws/kendra/*"
+                                    "arn:" + "aws" + ":logs:" + Aws.REGION + ":" + Aws.ACCOUNT_ID + ":log-group:" + "/aws/kendra/*"
                                 ],
                             )
                         ]
@@ -164,7 +167,7 @@ class KnowledgeAnalyzerStack(core.Stack):
                                     'logs:PutLogEvents',
                                 ],
                                 resources=[
-                                    "arn:" + "aws" + ":logs:" + core.Aws.REGION + ":" + core.Aws.ACCOUNT_ID + ":log-group:" + "/aws/kendra/*:log-stream:*" 
+                                    "arn:" + "aws" + ":logs:" + Aws.REGION + ":" + Aws.ACCOUNT_ID + ":log-group:" + "/aws/kendra/*:log-stream:*" 
                                 ],
                             )
                         ]
@@ -174,7 +177,6 @@ class KnowledgeAnalyzerStack(core.Stack):
             ],
         )   
 
-    
         self.indexKendra = kendra.CfnIndex(
             self, f'{self.PREFIX}-KendraIndex',
             edition = 'DEVELOPER_EDITION',
@@ -183,15 +185,12 @@ class KnowledgeAnalyzerStack(core.Stack):
         )
 
 
-#--------
-    # kendra data source role
-    
+        #-------- kendra data source role
         self.kendra_data_source_instance_role = aws_iam.Role(
             self,
             f'{self.PREFIX}-KDSrc-ServiceRole', 
             role_name=f'{self.PREFIX}-KDSrc-ServiceRole',
             assumed_by=aws_iam.ServicePrincipal('kendra.amazonaws.com'))
-    
     
         self.kendra_data_source_instance_role.add_to_policy(aws_iam.PolicyStatement(
             effect=aws_iam.Effect.ALLOW,
@@ -202,12 +201,10 @@ class KnowledgeAnalyzerStack(core.Stack):
             resources=[self.indexKendra.attr_arn]
         ))
         
-
-
+        # Grant read access for the S3 bucket to Kendra
         self.s3_loc.grant_read(self.kendra_data_source_instance_role)
-
-        # print(dir(kendra.CfnDataSource.DataSourceInclusionsExclusionsStringsProperty))
         
+        # Create the Kendra data source
         self.datasourceKendra = kendra.CfnDataSource(
             self, f'{self.PREFIX}-Data-S3-HealthLake',
             name = f'{self.PREFIX}-Data-S3-HealthLake',
@@ -225,14 +222,10 @@ class KnowledgeAnalyzerStack(core.Stack):
         )
         
         self.datasourceKendra.add_override("Properties.DataSourceConfiguration.S3Configuration.InclusionPrefixes", ['source/'])
-  
-
 
         ## **************** Create resources **************** 
         self.createLambdaFunctions()
         self.setLambdaTriggers()
-
-        
 
         # QueuePolicy
         self.queue_policy = sqs.CfnQueuePolicy(self, "QueuePolicy", 
@@ -247,10 +240,10 @@ class KnowledgeAnalyzerStack(core.Stack):
                         "AWS": "*"
                     },
                     "Action" : "SQS:SendMessage",
-                    "Resource" : f'arn:aws:sqs:us-east-1:{core.Aws.ACCOUNT_ID}:{self.comprehend_complete_sqs.queue_name}', # self.comprehend_complete_sqs.ref
+                    "Resource" : f'arn:aws:sqs:us-east-1:{Aws.ACCOUNT_ID}:{self.comprehend_complete_sqs.queue_name}', # self.comprehend_complete_sqs.ref
                     "Condition": {
                         "StringEquals": {
-                        "aws:SourceAccount": f'{core.Aws.ACCOUNT_ID}'
+                        "aws:SourceAccount": f'{Aws.ACCOUNT_ID}'
                         },
                         "ArnLike": {
                         "aws:SourceArn": f'arn:aws:s3:*:*:{self.s3_loc.bucket_name}'
@@ -259,18 +252,13 @@ class KnowledgeAnalyzerStack(core.Stack):
                 }]                    
             }
         )
-
-
-
-
-
-    
+        
     def createLambdaFunctions(self):
         ## **************** Lambda Layers - Helpers **************** 
         self.lambda_helper_base = _lambda.LayerVersion(
             self, f'{self.PREFIX}-lambdaHelperLayer',
             compatible_runtimes = [_lambda.Runtime.PYTHON_3_7],
-            code = _lambda.Code.asset('./assets/lambda_helper'),
+            code = _lambda.Code.from_asset('./assets/lambda_helper'),
             description = "A Helper layer for supporting code",
             layer_version_name = f"{self.PREFIX}-lambdaHelperLayer",
         )
@@ -278,7 +266,7 @@ class KnowledgeAnalyzerStack(core.Stack):
         self.lambda_helper_neptune = _lambda.LayerVersion(
             self, f'{self.PREFIX}-lambdaHelperNeptune',
             compatible_runtimes = [_lambda.Runtime.PYTHON_3_7],
-            code = _lambda.Code.asset('./assets/lambda_helper_neptune'),
+            code = _lambda.Code.from_asset('./assets/lambda_helper_neptune'),
             description = "A Helper layer for generating neptune triples",
             layer_version_name = f"{self.PREFIX}-lambdaHelperNeptune",
         )
@@ -286,7 +274,7 @@ class KnowledgeAnalyzerStack(core.Stack):
         self.lambda_layer_spacy = _lambda.LayerVersion(
             self, f'{self.PREFIX}-lambdaHelperPandasSpacy',
             compatible_runtimes = [_lambda.Runtime.PYTHON_3_7],
-            code = _lambda.Code.asset('./assets/lambda_helper_spacy/python.zip'),
+            code = _lambda.Code.from_asset('./assets/lambda_helper_spacy/python.zip'),
             description = "A Helper layer containing spacy, pandas and numpy",
             layer_version_name = f"{self.PREFIX}-lambdaHelperPandasSpacy",
         )
@@ -296,12 +284,12 @@ class KnowledgeAnalyzerStack(core.Stack):
         self.generate_triples_lambda = _lambda.Function(
             self, f'{self.PREFIX}-genTriplesAndLoadNeptune',
             runtime = _lambda.Runtime.PYTHON_3_7,
-            code = _lambda.Code.asset('./assets/lambda'),
+            code = _lambda.Code.from_asset('./assets/lambda'),
             handler = 'genTriplesAndLoadNeptune.lambda_handler',
             function_name = f'{self.PREFIX}-genTriplesAndLoadNeptune',
             memory_size = 1024,
             # retry_attempts = 1, 
-            timeout = core.Duration.seconds(EXECUTE_COMPREHEND_TIMEOUT),
+            timeout = Duration.seconds(EXECUTE_COMPREHEND_TIMEOUT),
             environment = { 
                 'NEPTUNE_TRIPLES_FOLDER': NEPTUNE_TRIPLES_FOLDER
             },
@@ -317,6 +305,6 @@ class KnowledgeAnalyzerStack(core.Stack):
         # Read Comprehend completion notification and prepare triples for neptune
         self.sqs_queue = sqs.Queue.from_queue_arn(
             self, "CDKQueue",
-            self.comprehend_complete_sqs.get_att("Arn").to_string() #f'arn:aws:sqs:us-east-1:{core.Aws.ACCOUNT_ID}:{self.comprehend_complete_sqs.queue_name}'
+            self.comprehend_complete_sqs.get_att("Arn").to_string() #f'arn:aws:sqs:us-east-1:{Aws.ACCOUNT_ID}:{self.comprehend_complete_sqs.queue_name}'
         )        
         self.generate_triples_lambda.add_event_source(aws_lambda_event_sources.SqsEventSource(self.sqs_queue, batch_size = 1))

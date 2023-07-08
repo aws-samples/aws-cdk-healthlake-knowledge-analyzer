@@ -1,5 +1,7 @@
+from constructs import Construct
 from aws_cdk import (
-    core,
+    Stack,
+    Tags,
     aws_certificatemanager as cm,
     aws_ssm as ssm,
     aws_s3 as s3,
@@ -14,9 +16,9 @@ EC2_INSTANCE_TYPE = "t2.xlarge"
 
 external_ip = urllib.request.urlopen("https://ident.me").read().decode("utf8")
 
-class KnowledgeAnalyzerWebappStack(core.Stack):
+class KnowledgeAnalyzerWebappStack(Stack):
 
-    def __init__(self, scope: core.Construct, id: str, vpc: ec2.Vpc, **kwargs) -> None:
+    def __init__(self, scope: Construct, id: str, vpc: ec2.Vpc, **kwargs) -> None:
         super().__init__(scope, id, **kwargs)
 
         # security group
@@ -49,7 +51,7 @@ class KnowledgeAnalyzerWebappStack(core.Stack):
             ec2.Peer.any_ipv4(), ec2.Port.tcp(443), "https",
         ) 
 
-        core.Tags.of(self.webapp_ec2_security_grp).add("Name", "webapp_ec2_security_grp")
+        Tags.of(self.webapp_ec2_security_grp).add("Name", "webapp_ec2_security_grp")
 
         ## EC2 instance to host the webapp
         self.webAppInstance = ec2.Instance(
